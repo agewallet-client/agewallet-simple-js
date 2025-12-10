@@ -6,11 +6,12 @@ Protect your website with age verification in minutes using the AgeWallet Simple
 
 ### Step 1: Get Your Credentials
 
-1. Log in to the AgeWallet Dashboard
+1. Log in to the AgeWallet Dashboard.
 
 2. Create a new Application.
 
-3. In the **Redirect URI** field, enter your website's **Home Page URL** (e.g., `https://mywinery.com`).
+3. In the **Redirect URI** field, enter your website's **Root URL** exactly (e.g., `https://mywinery.com`).
+   * **IMPORTANT:** Do not include a trailing slash (use `https://site.com`, NOT `https://site.com/`).
 
 4. Copy your **Client ID**.
 
@@ -55,11 +56,11 @@ This example sets a custom logo, changes the text, expires the session after 1 h
         data-yes-label="Enter Site"
         data-no-label="Exit"
         data-expiry="60"
-        data-css="https://simpleaw-test.netlify.app/demo.css">
+        data-css="https://mywinery.com/custom-gate.css">
     </script>
 
 ## Troubleshooting
 
-- **Gate appears but verification fails:** Ensure your "Redirect URI" in the AgeWallet Dashboard matches your website's address exactly (including `https://`).
+* **Gate appears but verification fails:** Ensure your "Redirect URI" in the AgeWallet Dashboard matches your website's address exactly (including `https://`).
 
-- **Gate doesn't appear:** Check your browser console (F12) for errors. Ensure the script tag is placed correctly before `</body>`.
+* **Gate doesn't appear:** Check your browser console (F12) for errors. Ensure the script tag is placed correctly before `</body>`.
