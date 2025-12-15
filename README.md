@@ -25,7 +25,7 @@ Paste the following code snippet inside the `<head>` tag of **every page** you w
 #### Basic Code (Default Style)
 
     <script
-        src="[https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js](https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js)"
+        src="(https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.js)"
         data-client-id="YOUR_CLIENT_ID_HERE"
         onerror="document.body.innerHTML='<div style=\'position:fixed;top:0;left:0;width:100%;height:100%;background:#0d0d10;color:#fff;display:flex;justify-content:center;align-items:center;flex-direction:column;font-family:sans-serif;z-index:99999\'><h2>Verification Error</h2><p style=\'margin-bottom:20px\'>We could not verify security settings.</p><button onclick=\'location.reload()\' style=\'padding:10px 20px;cursor:pointer\'>Reload Page</button></div>';">
     </script>
@@ -56,7 +56,7 @@ Customize the look and feel of your age gate by adding `data-` attributes to you
 This example sets a custom logo, changes the text, expires the session after 1 hour, and loads a custom theme.
 
     <script
-        src="[https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js](https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js)"
+        src="(https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.js)"
         data-client-id="YOUR_CLIENT_ID_HERE"
         data-title="Restricted Access"
         data-description="Welcome to the reserve. Please verify your age."
