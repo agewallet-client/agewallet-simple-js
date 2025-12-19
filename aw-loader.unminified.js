@@ -43,8 +43,6 @@
         }
 
         var K_S="aw_session_"+cid;
-        var K_SIG="aw_signal_"+cid;
-        var K_OIDC="aw_oidc_"+cid;
 
         var defaultLogo="https://www.agewallet.com/wp-content/uploads/2025/07/age-wallet-logo-light-tmb2-cleaned-300x225.png";
         var logoUrl=scriptTag.getAttribute("data-logo")||defaultLogo;
@@ -61,6 +59,8 @@
         const decodeState=str=>{try{str=str.replace(/-/g,'+').replace(/_/g,'/');while(str.length%4)str+='=';return JSON.parse(atob(str));}catch(e){return null;}};
         const setCookie=(name,value,minutes)=>{var expires="";if(minutes){var date=new Date();date.setTime(date.getTime()+(minutes*60*1000));expires="; expires="+date.toUTCString();}document.cookie=name+"="+(encodeURIComponent(value)||"")+expires+"; path=/; SameSite=Lax";};
         const store=(k,v,m)=>{try{localStorage.setItem(k,v);}catch(e){}setCookie(k,v,m);};
+        const rnd=l=>Array.from(crypto.getRandomValues(new Uint8Array(l)),b=>b.toString(16).padStart(2,'0')).join('');
+        const pkce=async v=>btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v))))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
         function renderError(title,msg){
             if(!$(HID)){
@@ -75,103 +75,28 @@
             document.body.appendChild(card);
         }
 
-        /* LOGIC ROUTER */
-        var params=new URLSearchParams(window.location.search);
-        if(params.has("code")&&params.has("state")){
-            if(window.opener)runCallbackMode(params);
-            else handleStatelessReturn(params);
-        }else{
-            runGatekeeperMode();
+        function renderLoading(){
+            var overlay=C('div');
+            overlay.className='aw-gate-overlay';
+            overlay.innerHTML='<div class="aw-card aw-gate-card"><img src="'+logoUrl+'" class="aw-gate-logo" alt="Logo"><h1 class="aw-title aw-gate-title">Verifying...</h1><div style="border:4px solid rgba(255,255,255,.1);border-left-color:#6a1b9a;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:20px auto"></div><style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style></div>';
+            document.body.appendChild(overlay);
         }
 
-        function runCallbackMode(urlParams){
-            var code=urlParams.get("code");
-            var state=urlParams.get("state");
-
-            function sendToParent(){
-                if(!window.opener||window.opener.closed){
-                    return false;
-                }
-                try{
-                    window.opener.postMessage({
-                        type:'agewallet_verified',
-                        code:code,
-                        state:state,
-                        timestamp:new Date().getTime()
-                    },window.location.origin);
-                    return true;
-                }catch(e){
-                    return false;
-                }
-            }
-
-            var sent=sendToParent();
-
-            if(!sent){
-                var retries=0;
-                var retryInterval=setInterval(function(){
-                    retries++;
-                    if(sendToParent()||retries>5){
-                        clearInterval(retryInterval);
-                    }
-                },200);
-            }
-
-            try{
-                var signalData=JSON.stringify({c:code,s:state,t:new Date().getTime()});
-                localStorage.setItem(K_SIG,signalData);
-                document.cookie=K_SIG+"="+encodeURIComponent(signalData)+"; path=/; SameSite=Lax";
-            }catch(e){}
-
-            setTimeout(function(){
-                try{
-                    window.close();
-                }catch(e){}
-            },1000);
+        function revealContent(){
+            if($(HID))$(HID).remove();
+            var overlay=document.querySelector('.aw-gate-overlay');
+            if(overlay)overlay.remove();
+            document.body.style.overflow='';
+            document.body.style.backgroundColor='';
         }
 
-        async function handleStatelessReturn(urlParams){
-            var code=urlParams.get("code");
-            var stateStr=urlParams.get("state");
-            var stateData=decodeState(stateStr);
-
-            if(stateData&&stateData.v){
-                try{
-                    var verifier=stateData.v;
-                    var returnUrl=stateData.r||window.location.pathname;
-                    var redirectUri=window.location.origin;
-
-                    var tokenResp=await fetch("https://app.agewallet.io/embed/token",{
-                        method:"POST",
-                        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-                        body:new URLSearchParams({client_id:cid,code:code,code_verifier:verifier,redirect_uri:redirectUri})
-                    });
-                    var tokenData=await tokenResp.json();
-                    if(tokenData.error)throw new Error(tokenData.error_description);
-
-                    var userResp=await fetch("https://app.agewallet.io/user/userinfo",{
-                        headers:{"Authorization":"Bearer "+tokenData.access_token}
-                    });
-                    var userData=await userResp.json();
-
-                    if(userData.age_verified===true){
-                        var expiresAt=new Date().getTime()+(expiryMinutes*60*1000);
-                        var sessionData=JSON.stringify({v:1,e:expiresAt});
-                        store(K_S,sessionData,expiryMinutes);
-                        window.location.href=returnUrl;
-                    }else{
-                        alert("Verification failed.");
-                        window.location.href=returnUrl;
-                    }
-                }catch(e){
-                    window.location.href=window.location.pathname;
-                }
-            }else{
-                runCallbackMode(urlParams);
-            }
+        function saveSession(){
+            var expiresAt=new Date().getTime()+(expiryMinutes*60*1000);
+            var sessionData=JSON.stringify({v:1,e:expiresAt});
+            store(K_S,sessionData,expiryMinutes);
         }
 
-        function runGatekeeperMode(){
+        function getSession(){
             var session=null;
             try{
                 session=JSON.parse(localStorage.getItem(K_S));
@@ -189,24 +114,13 @@
             if(session&&session.v){
                 var now=new Date().getTime();
                 if(now<session.e){
-                    if($(HID))$(HID).remove();
-                    document.body.style.overflow='';
-                    document.body.style.backgroundColor='';
-                    return;
+                    return session;
                 }else{
                     localStorage.removeItem(K_S);
                     setCookie(K_S,"",-1);
                 }
             }
-
-            if(customCss){
-                var link=C('link');
-                link.rel='stylesheet';
-                link.href=customCss;
-                document.head.appendChild(link);
-            }
-
-            renderGate();
+            return null;
         }
 
         function renderGate(){
@@ -216,159 +130,104 @@
             document.body.appendChild(overlay);
 
             $('aw-deny').onclick=()=>{$('aw-error-msg').style.display='block';};
-            var verifyBtn=$('aw-verify');
-            verifyBtn.onclick=()=>startVerificationFlow(verifyBtn);
+            $('aw-verify').onclick=()=>startVerification();
         }
 
-        async function startVerificationFlow(btnElement){
-            var currentUrl=window.location.origin;
+        async function startVerification(){
+            var verifier=rnd(32);
+            var nonce=rnd(16);
+            var challenge=await pkce(verifier);
 
-            const rnd=l=>Array.from(crypto.getRandomValues(new Uint8Array(l)),b=>b.toString(16).padStart(2,'0')).join('');
-            const pkce=async v=>btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v))))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+            var stateData=encodeState({
+                v:verifier,
+                r:window.location.pathname+window.location.search
+            });
 
-            var state=rnd(32);
-            var nonce=rnd(32);
-            var verifier=rnd(64);
+            var redirectUri=window.location.origin;
 
-            var popup=window.open('','agewallet_verify','width=1024,height=800');
+            var authUrl="https://app.agewallet.io/user/authorize?"+
+                "response_type=code&"+
+                "client_id="+encodeURIComponent(cid)+"&"+
+                "redirect_uri="+encodeURIComponent(redirectUri)+"&"+
+                "scope=openid&"+
+                "state="+stateData+"&"+
+                "nonce="+nonce+"&"+
+                "code_challenge="+challenge+"&"+
+                "code_challenge_method=S256";
 
-            if(!popup||popup.closed||typeof popup.closed=='undefined'){
-                alert("Popups are blocked. Please allow popups for this site to verify your age.");
+            window.location.href=authUrl;
+        }
+
+        async function handleCallback(code,stateStr){
+            renderLoading();
+
+            var stateData=decodeState(stateStr);
+
+            if(!stateData||!stateData.v){
+                renderError("Verification Error","Invalid state parameter.");
                 return;
             }
 
-            var loaderHtml='<style>body{background:#0d0d10;color:#fff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0}.logo{max-width:150px;margin-bottom:20px}.spinner{border:4px solid rgba(255,255,255,.1);border-left-color:#6a1b9a;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:15px}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}p{color:#c8cbd4;font-size:16px}</style><body><img src="'+logoUrl+'" class="logo"><div class="spinner"></div><p>Connecting to AgeWallet...</p></body>';
-            popup.document.write(loaderHtml);
+            var verifier=stateData.v;
+            var returnUrl=stateData.r?(window.location.origin+stateData.r):'/';
+            var redirectUri=window.location.origin;
 
-            btnElement.innerText="Verifying...";
+            try{
+                var tokenResp=await fetch("https://app.agewallet.io/embed/token",{
+                    method:"POST",
+                    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+                    body:new URLSearchParams({
+                        client_id:cid,
+                        code:code,
+                        code_verifier:verifier,
+                        redirect_uri:redirectUri
+                    })
+                });
 
-            var challenge=await pkce(verifier);
+                var tokenData=await tokenResp.json();
 
-            sessionStorage.setItem(K_OIDC,JSON.stringify({s:state,v:verifier,n:nonce}));
+                if(tokenData.error){
+                    throw new Error(tokenData.error_description||tokenData.error);
+                }
 
-            var authUrl="https://app.agewallet.io/user/authorize?response_type=code&client_id="+cid+"&redirect_uri="+encodeURIComponent(currentUrl)+"&scope=openid&state="+state+"&nonce="+nonce+"&code_challenge="+challenge+"&code_challenge_method=S256";
+                var userResp=await fetch("https://app.agewallet.io/user/userinfo",{
+                    headers:{"Authorization":"Bearer "+tokenData.access_token}
+                });
 
-            setTimeout(()=>{popup.location.href=authUrl;},100);
+                var userData=await userResp.json();
 
-            setupSignalListener(state,currentUrl,btnElement);
+                if(userData.age_verified===true){
+                    saveSession();
+                    window.location.href=returnUrl;
+                }else{
+                    renderError("Verification Failed","Age requirement not met.");
+                }
+            }catch(e){
+                renderError("Verification Error",e.message||"Token exchange failed.");
+            }
         }
 
-        function setupSignalListener(expectedState,redirectUri,btnElement){
-            var processed=false;
-            var checkInterval;
+        /* LOGIC ROUTER */
+        var queryString=window.__awParams||window.location.search;
+        var params=new URLSearchParams(queryString);
 
-            async function processSignal(signalData){
-                if(signalData.s!==expectedState){
-                    return;
+        if(params.has("code")&&params.has("state")){
+            handleCallback(params.get("code"),params.get("state"));
+        }else if(params.has("error")){
+            var errorDesc=params.get("error_description")||params.get("error");
+            renderError("Verification Error",decodeURIComponent(errorDesc));
+        }else{
+            if(getSession()){
+                revealContent();
+            }else{
+                if(customCss){
+                    var link=C('link');
+                    link.rel='stylesheet';
+                    link.href=customCss;
+                    document.head.appendChild(link);
                 }
-
-                if(processed){
-                    return;
-                }
-                processed=true;
-
-                if(checkInterval){
-                    clearInterval(checkInterval);
-                }
-
-                window.removeEventListener('storage',storageHandler);
-                window.removeEventListener('message',messageHandler);
-
-                localStorage.removeItem(K_SIG);
-                document.cookie=K_SIG+"=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
-                btnElement.innerText="Finalizing...";
-
-                try{
-                    var oidcData=JSON.parse(sessionStorage.getItem(K_OIDC));
-                    if(!oidcData)throw new Error("Missing OIDC");
-
-                    var tokenResp=await fetch("https://app.agewallet.io/embed/token",{
-                        method:"POST",
-                        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-                        body:new URLSearchParams({client_id:cid,code:signalData.c,code_verifier:oidcData.v,redirect_uri:redirectUri})
-                    });
-                    var tokenData=await tokenResp.json();
-                    if(tokenData.error)throw new Error(tokenData.error);
-
-                    var userResp=await fetch("https://app.agewallet.io/user/userinfo",{
-                        headers:{"Authorization":"Bearer "+tokenData.access_token}
-                    });
-                    var userData=await userResp.json();
-
-                    if(userData.age_verified===true){
-                        if($(HID))$(HID).remove();
-                        if(document.querySelector('.aw-gate-overlay'))document.querySelector('.aw-gate-overlay').remove();
-                        document.body.style.overflow='';
-                        document.body.style.backgroundColor='';
-
-                        var expiresAt=new Date().getTime()+(expiryMinutes*60*1000);
-                        var sessionData=JSON.stringify({v:1,e:expiresAt});
-                        store(K_S,sessionData,expiryMinutes);
-                    }else{
-                        alert("Verification failed.");
-                        btnElement.innerText=textYes;
-                    }
-                }catch(e){
-                    alert("Error.");
-                    btnElement.innerText=textYes;
-                }
+                renderGate();
             }
-
-            function messageHandler(event){
-                if(event.origin!==window.location.origin){
-                    return;
-                }
-
-                if(event.data&&event.data.type==='agewallet_verified'){
-                    var signalData={
-                        c:event.data.code,
-                        s:event.data.state,
-                        t:event.data.timestamp
-                    };
-
-                    processSignal(signalData);
-                }
-            }
-
-            window.addEventListener('message',messageHandler);
-
-            function storageHandler(e){
-                if(e.key===K_SIG&&e.newValue){
-                    try{
-                        processSignal(JSON.parse(e.newValue));
-                    }catch(err){}
-                }
-            }
-
-            window.addEventListener('storage',storageHandler);
-
-            checkInterval=setInterval(function(){
-                try{
-                    var raw=localStorage.getItem(K_SIG);
-                    if(raw){
-                        processSignal(JSON.parse(raw));
-                    }
-                }catch(err){}
-
-                var cookieMatch=document.cookie.match(new RegExp('(^| )'+K_SIG+'=([^;]+)'));
-                if(cookieMatch){
-                    try{
-                        processSignal(JSON.parse(decodeURIComponent(cookieMatch[2])));
-                    }catch(err){}
-                }
-            },500);
-
-            setTimeout(function(){
-                clearInterval(checkInterval);
-                window.removeEventListener('message',messageHandler);
-                window.removeEventListener('storage',storageHandler);
-
-                if(!processed){
-                    btnElement.innerText=textYes;
-                    alert("Verification timed out. This can happen in private browsing mode.\n\nPlease try again, or use normal browsing mode.");
-                }
-            },120000);
         }
     };
 

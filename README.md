@@ -21,10 +21,24 @@ Paste the following code snippet inside the `<head>` tag of **every page** you w
 #### Basic Usage (Default Style)
 
 ```html
-<script
-    src="https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.js"
-    data-client-id="YOUR_CLIENT_ID">
-</script>
+<script>(function(w,d,i,c){
+    w.__awParams=location.search;
+    var s=d.createElement('script');
+    s.src='https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js';
+    s.setAttribute('data-client-id',i);
+    if(c)Object.keys(c).forEach(function(k){s.setAttribute('data-'+k,c[k]);});
+    d.head.appendChild(s);
+})(window,document,'YOUR_CLIENT_ID',{
+    // Uncomment and edit options below to customize:
+    // logo: 'https://example.com/your-logo.png',
+    // title: 'Age Verification Required',
+    // description: 'You must be 18 or older to view this content.',
+    // 'yes-label': 'Verify Now',
+    // 'no-label': 'I am under 18',
+    // 'error-msg': 'Access denied.',
+    // expiry: '1440',
+    // css: 'https://example.com/custom-gate-styles.css'
+});</script>
 ```
 
 **Replace `YOUR_CLIENT_ID` with your actual Client ID from Step 1.**
@@ -35,44 +49,46 @@ That's it! The age gate will now protect your content.
 
 ## Customization Options
 
-### Data Attributes
+Customize the age gate by uncommenting and editing the options in the config object:
 
-Customize the age gate by adding `data-` attributes to your script tag:
+| Option | Description | Default Value |
+|--------|-------------|---------------|
+| `logo` | URL to your logo image. | AgeWallet logo |
+| `title` | Main headline text on the gate. | "Age Verification" |
+| `description` | Message body text. | "You must verify your age to view this content." |
+| `yes-label` | Text for the verify button. | "Verify with AgeWallet" |
+| `no-label` | Text for the deny button. | "I Disagree" |
+| `error-msg` | Message shown when user clicks deny. | "Sorry, you do not meet the minimum requirements." |
+| `expiry` | Session duration in minutes. | `1440` (24 hours) |
+| `css` | URL to a custom CSS stylesheet for advanced styling. | None |
 
-| Attribute | Description | Default Value |
-|-----------|-------------|---------------|
-| `data-client-id` | **Required.** Your AgeWallet Client ID. | None |
-| `data-title` | Main headline text on the gate. | "Age Verification" |
-| `data-description` | Message body text. | "You must verify your age to view this content." |
-| `data-logo` | URL to your logo image. | AgeWallet logo |
-| `data-yes-label` | Text for the verify button. | "Verify with AgeWallet" |
-| `data-no-label` | Text for the deny button. | "I Disagree" |
-| `data-error-msg` | Message shown when user clicks deny. | "Sorry, you do not meet the minimum requirements." |
-| `data-expiry` | Session duration in minutes. | `1440` (24 hours) |
-| `data-css` | URL to a custom CSS stylesheet for advanced styling. | None |
-
-#### Advanced Example (Fully Customized)
+#### Fully Customized Example
 
 ```html
-<script
-    src="https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.js"
-    data-client-id="YOUR_CLIENT_ID"
-    data-title="Age Verification Required"
-    data-description="Please confirm you are over 18 to enter."
-    data-logo="https://yoursite.com/assets/logo.png"
-    data-yes-label="Verify Now"
-    data-no-label="I am under 18"
-    data-error-msg="Access denied."
-    data-expiry="60"
-    data-css="https://yoursite.com/custom-gate-styles.css">
-</script>
+<script>(function(w,d,i,c){
+    w.__awParams=location.search;
+    var s=d.createElement('script');
+    s.src='https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js';
+    s.setAttribute('data-client-id',i);
+    if(c)Object.keys(c).forEach(function(k){s.setAttribute('data-'+k,c[k]);});
+    d.head.appendChild(s);
+})(window,document,'YOUR_CLIENT_ID',{
+    logo: 'https://yoursite.com/assets/logo.png',
+    title: 'Age Verification Required',
+    description: 'Please confirm you are over 18 to enter.',
+    'yes-label': 'Verify Now',
+    'no-label': 'I am under 18',
+    'error-msg': 'Access denied.',
+    expiry: '60',
+    css: 'https://yoursite.com/custom-gate-styles.css'
+});</script>
 ```
 
 ---
 
 ## Custom CSS Styling
 
-Use the `data-css` attribute to link to your own stylesheet for complete design control.
+Use the `css` option to link to your own stylesheet for complete design control.
 
 ### Available CSS Selectors
 
@@ -142,16 +158,6 @@ Create a file at `https://yoursite.com/custom-gate-styles.css`:
 }
 ```
 
-Then reference it in your script tag:
-
-```html
-<script
-    src="https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.js"
-    data-client-id="YOUR_CLIENT_ID"
-    data-css="https://yoursite.com/custom-gate-styles.css">
-</script>
-```
-
 ---
 
 ## How It Works
@@ -159,42 +165,22 @@ Then reference it in your script tag:
 1. **Script loads** in the `<head>` and immediately hides page content
 2. **Session check** - If user has a valid session, content is unlocked immediately
 3. **Age gate appears** - If no session, the verification gate is shown
-4. **OAuth flow** - When user clicks verify, a popup opens to AgeWallet
+4. **Redirect to AgeWallet** - When user clicks verify, they are redirected to AgeWallet
 5. **Verification** - User verifies their age with AgeWallet
-6. **Session created** - Upon success, a session is stored (localStorage + cookie)
-7. **Content unlocked** - Gate is removed and content is shown
+6. **Callback** - AgeWallet redirects back to your site with an authorization code
+7. **Token exchange** - Script exchanges the code for a verified session
+8. **Deep link restoration** - User is returned to the original page they were viewing
+9. **Content unlocked** - Gate is removed and content is shown
 
-The session persists across page navigations and browser tabs for the duration specified in `data-expiry`.
+The session persists across page navigations and browser tabs for the duration specified in the `expiry` option.
 
----
+### Deep Link Support
 
-## Known Issues
+If a user lands on a protected deep link (e.g., `/shop/product-123`) without a session:
 
-### Safari Private Browsing Mode
-
-**Issue:** Age verification may fail intermittently in Safari Private Browsing mode on macOS and iOS.
-
-**Cause:** Safari's enhanced privacy features in Private mode block the cross-window communication mechanisms used by the OAuth flow.
-
-**Symptoms:**
-
-- Verification popup opens successfully
-- User completes verification on AgeWallet
-- Popup redirects back to your site but verification times out after 2 minutes
-- User sees "Verification timed out" alert message
-
-**Workarounds:**
-
-1. **Retry verification** - Sometimes works on second attempt
-2. **Use normal browsing mode** - Works reliably 100% of the time
-3. **Use a different browser** - Chrome, Firefox, and Edge all work reliably in private/incognito mode
-
-**Important:** This issue only affects Safari Private mode. The script works reliably in:
-
-- ✅ Safari (normal mode)
-- ✅ Chrome (normal & incognito)
-- ✅ Firefox (normal & private)
-- ✅ Edge (normal & InPrivate)
+1. The script saves their intended destination
+2. User verifies through AgeWallet
+3. After verification, user is automatically returned to `/shop/product-123`
 
 ---
 
@@ -202,25 +188,25 @@ The session persists across page navigations and browser tabs for the duration s
 
 ### Gate appears but verification fails
 
-- Ensure your **Redirect URI** in the AgeWallet Dashboard matches your website's address exactly (including `https://`)
+- Ensure your **Redirect URI** in the AgeWallet Dashboard matches your website's root URL exactly (including `https://`)
 - Check that you're not including a trailing slash in the Redirect URI
+- The Redirect URI should be your site root (e.g., `https://mysite.com`), not a specific page
 
 ### Gate doesn't appear
 
 - Open your browser console (F12) and check for errors
-- Verify the script tag is placed in the `<head>` section
-- Confirm your `data-client-id` is correct
+- Verify the script is placed in the `<head>` section
+- Confirm your Client ID is correct
 
 ### Content flashes before gate appears (FOUC)
 
-- Move the script tag **higher** in your `<head>` section
+- Move the script **higher** in your `<head>` section
 - The script must load before any content is rendered
 
-### Popups are blocked
+### "Invalid redirect URI" error
 
-- Ensure your browser allows popups for your domain
-- Some aggressive ad blockers may interfere with the OAuth popup
-- Add an exception for your domain in popup blocker settings
+- Your Redirect URI in the AgeWallet Dashboard must exactly match your site's origin
+- Use `https://mysite.com` (no trailing slash, no path)
 
 ---
 
@@ -229,19 +215,18 @@ The session persists across page navigations and browser tabs for the duration s
 - ✅ Chrome (normal & incognito)
 - ✅ Firefox (normal & private)
 - ✅ Edge (normal & InPrivate)
-- ✅ Safari (normal mode)
-- ⚠️ Safari Private Mode (intermittent - see Known Issues)
+- ✅ Safari (normal & private)
 
 ---
 
 ## Session Storage
 
-The script uses a dual-storage approach for reliability:
+The script uses a dual-storage approach for maximum compatibility:
 
 - **localStorage** - Primary storage method
-- **Cookies** - Fallback if localStorage is unavailable
+- **Cookies** - Fallback for browsers with restricted localStorage
 
-Sessions are namespaced by your Client ID, so multiple AgeWallet applications can coexist on the same domain.
+Both storage methods contain the same session data with matching expiration times. Sessions are namespaced by your Client ID, so multiple AgeWallet applications can coexist on the same domain.
 
 ---
 
@@ -250,7 +235,7 @@ Sessions are namespaced by your Client ID, so multiple AgeWallet applications ca
 - **PKCE (Proof Key for Code Exchange)** - Prevents authorization code interception
 - **State validation** - Protects against CSRF attacks
 - **Nonce verification** - Prevents replay attacks
-- **Client-side only** - No server required
+- **Stateless architecture** - PKCE verifier is encoded in state, no server-side session required
 - **Session expiration** - Automatic timeout after specified duration
 
 ---
@@ -260,5 +245,5 @@ Sessions are namespaced by your Client ID, so multiple AgeWallet applications ca
 For questions or issues:
 
 - Email: [support@agewallet.com](mailto:support@agewallet.com)
-- Documentation: [docs.agewallet.com](https://docs.agewallet.com)
+- Documentation: [agewallet.com/developers](https://agewallet.com/developers/)
 - Dashboard: [app.agewallet.io](https://app.agewallet.io)
