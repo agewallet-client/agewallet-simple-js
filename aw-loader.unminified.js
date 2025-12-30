@@ -214,8 +214,19 @@
         if(params.has("code")&&params.has("state")){
             handleCallback(params.get("code"),params.get("state"));
         }else if(params.has("error")){
-            var errorDesc=params.get("error_description")||params.get("error");
-            renderError("Verification Error",decodeURIComponent(errorDesc));
+            var errorType=params.get("error");
+            var errorDesc=params.get("error_description")||errorType;
+
+            // Handle exempt region (old API) - treat as verified
+            if(errorType==="access_denied"&&errorDesc==="Region does not require verification"){
+                var stateStr=params.get("state");
+                var stateData=stateStr?decodeState(stateStr):null;
+                var returnUrl=(stateData&&stateData.r)?(window.location.origin+stateData.r):'/';
+                saveSession();
+                window.location.href=returnUrl;
+            }else{
+                renderError("Verification Error",decodeURIComponent(errorDesc));
+            }
         }else{
             if(getSession()){
                 revealContent();
