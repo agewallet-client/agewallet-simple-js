@@ -53,6 +53,8 @@
         var textNo=scriptTag.getAttribute("data-no-label")||"I Disagree";
         var textError=scriptTag.getAttribute("data-error-msg")||"Sorry, you do not meet the minimum requirements.";
         var expiryMinutes=parseInt(scriptTag.getAttribute("data-expiry")||"1440",10);
+        var env=scriptTag.getAttribute("data-env")||"prod";
+        var baseUrl=(env==="dev")?"https://dev.agewallet.io":"https://app.agewallet.io";
 
         /* HELPERS */
         const encodeState=data=>btoa(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -148,7 +150,7 @@
 
             var redirectUri=window.location.origin;
 
-            var authUrl="https://app.agewallet.io/user/authorize?"+
+            var authUrl=baseUrl+"/user/authorize?"+
                 "response_type=code&"+
                 "client_id="+encodeURIComponent(cid)+"&"+
                 "redirect_uri="+encodeURIComponent(redirectUri)+"&"+
@@ -176,7 +178,7 @@
             var redirectUri=window.location.origin;
 
             try{
-                var tokenResp=await fetch("https://app.agewallet.io/embed/token",{
+                var tokenResp=await fetch(baseUrl+"/embed/token",{
                     method:"POST",
                     headers:{"Content-Type":"application/x-www-form-urlencoded"},
                     body:new URLSearchParams({
@@ -193,7 +195,7 @@
                     throw new Error(tokenData.error_description||tokenData.error);
                 }
 
-                var userResp=await fetch("https://app.agewallet.io/user/userinfo",{
+                var userResp=await fetch(baseUrl+"/user/userinfo",{
                     headers:{"Authorization":"Bearer "+tokenData.access_token}
                 });
 
