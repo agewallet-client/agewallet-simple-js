@@ -54,7 +54,8 @@
         var textError=scriptTag.getAttribute("data-error-msg")||"Sorry, you do not meet the minimum requirements.";
         var expiryMinutes=parseInt(scriptTag.getAttribute("data-expiry")||"1440",10);
         var env=scriptTag.getAttribute("data-env")||"prod";
-        var baseUrl=(env==="dev")?"https://dev.agewallet.io":"https://app.agewallet.io";
+        var baseUrl=(env==="prod")?"https://app.agewallet.io":"https://"+env+".agewallet.io";
+        var metadataValue=window.__awMetadata||null;
 
         /* HELPERS */
         const encodeState=data=>btoa(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -95,9 +96,9 @@
             document.body.style.backgroundColor='';
         }
 
-        function saveSession(){
+        function saveSession(metadata){
             var expiresAt=new Date().getTime()+(expiryMinutes*60*1000);
-            var sessionData=JSON.stringify({v:1,e:expiresAt});
+            var sessionData=JSON.stringify({v:1,e:expiresAt,m:metadata||null});
             store(K_S,sessionData,expiryMinutes);
         }
 
@@ -160,6 +161,10 @@
                 "code_challenge="+challenge+"&"+
                 "code_challenge_method=S256";
 
+            if(metadataValue){
+                authUrl+="&metadata="+encodeURIComponent(metadataValue);
+            }
+
             window.location.href=authUrl;
         }
 
@@ -202,7 +207,7 @@
                 var userData=await userResp.json();
 
                 if(userData.age_verified===true){
-                    saveSession();
+                    saveSession(userData.metadata||null);
                     window.location.href=returnUrl;
                 }else{
                     renderError("Verification Failed","Age requirement not met.");

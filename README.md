@@ -160,6 +160,67 @@ Create a file at `https://yoursite.com/custom-gate-styles.css`:
 
 ---
 
+## Metadata Pass-Through
+
+You can attach an arbitrary string (up to 4096 bytes) to each verification request — for example an order ID, a customer ID, or any other reference value. AgeWallet will store it server-side and return it to your loader after verification.
+
+### Setting metadata
+
+Set `window.__awMetadata` **before** the AgeWallet script snippet:
+
+#### Plain HTML
+
+```html
+<script>window.__awMetadata = 'order:XYZ-42';</script>
+
+<script>(function(w,d,i,c){
+    w.__awParams=location.search;
+    var s=d.createElement('script');
+    s.src='https://cdn.jsdelivr.net/gh/agewallet-client/agewallet-simple-js@1/aw-loader.min.js';
+    s.setAttribute('data-client-id',i);
+    if(c)Object.keys(c).forEach(function(k){s.setAttribute('data-'+k,c[k]);});
+    d.head.appendChild(s);
+})(window,document,'YOUR_CLIENT_ID',{});</script>
+```
+
+#### Shopify (Liquid template)
+
+```html
+<script>window.__awMetadata = 'customer:{{ customer.id }}';</script>
+
+<script>(function(w,d,i,c){...})(window,document,'YOUR_CLIENT_ID',{});</script>
+```
+
+#### Wix / Velo, Squarespace Code Injection, etc.
+
+Any platform that lets you inject a `<script>` block can set `window.__awMetadata` before our loader runs. Browser script execution order does the rest.
+
+### Reading metadata back
+
+After successful verification, the value is stored alongside the session in `localStorage` (and as a fallback cookie) under the key `aw_session_<YOUR_CLIENT_ID>`. The stored value is a JSON object:
+
+```json
+{ "v": 1, "e": 1747600000000, "m": "order:XYZ-42" }
+```
+
+Read it from any page after verification:
+
+```js
+var session = JSON.parse(localStorage.getItem('aw_session_YOUR_CLIENT_ID'));
+if (session && session.m) {
+    console.log('Verified for:', session.m);
+}
+```
+
+### Notes
+
+- **Size limit:** AgeWallet's server rejects metadata larger than 4096 bytes.
+- **Optional:** If you don't set `window.__awMetadata`, nothing changes — the loader behaves exactly as before and the session JSON's `m` field is simply absent.
+- **Session expiry:** Metadata is cleared along with the session when it expires.
+- **Not tamper-proof on the client:** the `m` field is read from a signed AgeWallet response, but the localStorage copy can be edited by the user — trust your server-side AgeWallet record for anything sensitive.
+
+---
+
 ## How It Works
 
 1. **Script loads** in the `<head>` and immediately hides page content
