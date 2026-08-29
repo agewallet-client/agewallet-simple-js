@@ -1,4 +1,12 @@
 (() => {
+    /* SINGLE-EXECUTION GUARD
+       Some hosts (Wix) inject the same head embed more than once per document.
+       A second run built a second overlay with duplicate element ids; getElementById
+       returns the first match, so the handler bound to overlay 1 while the visitor
+       clicked overlay 2 and nothing happened. Bail out on any run after the first. */
+    if(window.__awLoaderRan)return;
+    window.__awLoaderRan=1;
+
     const $=i=>document.getElementById(i);
     const C=t=>document.createElement(t);
 
