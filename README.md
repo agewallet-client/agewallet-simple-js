@@ -10,7 +10,9 @@ Protect your website with age verification in minutes using the AgeWallet Simple
 2. Create a new Client.
 3. In the **Redirect URI** field, enter your website's **Root URL** exactly (e.g., `https://mywinery.com`).
    - **IMPORTANT:** Do not include a trailing slash (use `https://site.com`, NOT `https://site.com/`).
-4. Copy your **Client ID**.
+4. Switch **Confidential Client** off.
+   - **IMPORTANT:** Confidential Client is on by default, and Simple JS will not work while it is on.
+5. Copy your **Client ID**.
 
 ### Step 2: Add the Script
 
